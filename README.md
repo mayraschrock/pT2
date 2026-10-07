@@ -44,12 +44,60 @@ process
   -k low pt (we usually use this)
   -n Number of events
   -r make root file adding pt2s
+  -N NN model directory (default: the shared one on /cmsuf)
+  -X turn the NN off
+  -c apply the threshold cuts in src/pt2_cuts.h
+  -a N ambiguity: keep only the N best pT2s per (pLS, zone, charge)
 scan
   -e Target efficiency percent (default 90)
 common
   -o Output Directory (default: output)
   -H Histogram file (default: <output dir>/pt2_hists.root)
 ```
+
+## Selecting pT2s with threshold cuts
+
+An alternative to the NN: a box cut per detector zone and charge, plus a step
+that resolves candidates competing for the same pLS. Both are off by default,
+so nothing changes unless you ask for them.
+
+```
+./bin/pt2 process -k -c -a 1 -X -r
+```
+
+- `-c` applies the thresholds in `src/pt2_cuts.h`.
+- `-a 1` keeps, of all the pT2s that share a pLS within one zone and charge,
+  only the single best one. `-a 2` keeps the best two, and so on. Leaving it
+  out keeps all of them.
+- `-X` skips loading the NN. Without it the NN still runs and fills
+  `pT2_NNscore`; it just does not reject anything, so `-c` and the NN are
+  independent and can be used together or separately.
+
+Cut and ambiguity are applied before the histograms are filled and before
+anything is written, so every output of the run (`pt2_hists.root`,
+`LSTNtuple_with_pT2.root`, `pt2_training_data.root`) describes the selected
+pT2s only.
+
+### What is in `src/pt2_cuts.h`
+
+One `[13][2]` table of lower and upper bounds per variable, indexed by
+`combo_idx` (the layer-connection zone) and `charge_idx` (0 = positive). A
+`NAN` bound means that side is not cut, and a variable that could not be
+computed for a given pT2 passes rather than fails. The header also holds the
+four sigmas used to rank candidates in the ambiguity step.
+
+The sigmas are the 68% spread of each helical residual over real pT2s, so the
+ranking score
+
+    chi2 = sum over the four helical residuals of (residual / sigma)^2
+
+measures how far the pLS extrapolation misses the two mini-doublets of the LS,
+in units of how far a genuine pT2 normally misses. The smallest chi2 wins.
+
+The values committed here keep **54.4% of real pT2s** at a real/fake ratio of
+**6.2**, measured on the 0.6 GeV PU200 sample with `-c -a 1`. To use different
+thresholds, edit the tables in place -- the file is a plain header, so only a
+rebuild is needed.
 
 ## Training the NN
 
@@ -64,4 +112,4 @@ python pt2_ml/train_v7.py --data output/pt2_training_data.root --output_dir nn_o
 - `--data` takes files, directories, or glob patterns. Rows are split into train/val/test by event (`--val_frac`, `--test_frac`, default 0.1 each).
 - `--fast_dev_run` does a quick 2-epoch check on a few batches.
 - SHAP plots need the `shap` package, which the module does not include; use `--skip_shap` otherwise.
-- The output directory gets `model.onnx`, `mean.npy`, `std.npy` (exported with a dynamic batch size), plus plots and `metrics.json`. Use it with `./bin/pt2 process -r -N nn_out`.
+- The output directory gets `model.onnx`, `mean.npy`, `std.npy` (exported with a dynamic batch size), plus plots and `metrics.json`. Use it with `./bin/pt2 process -r -N nn_out`, or pass `-X` to skip the NN entirely.
