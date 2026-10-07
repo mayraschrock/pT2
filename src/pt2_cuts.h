@@ -11,6 +11,24 @@
 // Sample: all   NaN policy: pass   MIN_FAKE_PER_REAL: 1.0
 // Measured on that sample: signal efficiency 54.442%, fake kept 0.0215%, real/fake 6.171
 //
+// CAUTION: those three numbers are wrong, and the generator still prints them.
+// They were measured on a dump whose fakes were prescaled 1-in-50 (-f 50).
+// Prescaling is harmless for the cuts, which judge each candidate on its own,
+// but the ambiguity step is a contest BETWEEN candidates sharing a pLS, and in
+// a prescaled dump a real pT2 only had to beat 1 in 50 of its rivals. The
+// weight branch cannot repair a contest that never took place.
+//
+// Run in full (./bin/pt2 process -k -c -a 1), these same thresholds give:
+//     signal efficiency 50.76%, fake kept 0.0163%, real/fake 7.611
+// Efficiency is lower because reals lose contests they used to win; the ratio
+// is higher because fakes now mostly knock each other out instead of each
+// surviving one being kept and multiplied by 50.
+//
+// The thresholds themselves were tuned against the prescaled ambiguity, so
+// they are complementing a step that behaved differently than it does here.
+// To retune honestly, prescale by EVENT (keep every pT2 of 1-in-N events)
+// rather than by candidate: that leaves the within-event competition intact.
+//
 // Indexed [comboIdx][chargeIdx], chargeIdx 0 = positive, 1 = negative.
 // Bounds are INCLUSIVE. A NAN bound means that side is not cut.
 //
