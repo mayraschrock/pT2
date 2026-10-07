@@ -78,27 +78,6 @@ anything is written, so every output of the run (`pt2_hists.root`,
 `LSTNtuple_with_pT2.root`, `pt2_training_data.root`) describes the selected
 pT2s only.
 
-### What is in `src/pt2_cuts.h`
-
-One `[13][2]` table of lower and upper bounds per variable, indexed by
-`combo_idx` (the layer-connection zone) and `charge_idx` (0 = positive). A
-`NAN` bound means that side is not cut, and a variable that could not be
-computed for a given pT2 passes rather than fails. The header also holds the
-four sigmas used to rank candidates in the ambiguity step.
-
-The sigmas are the 68% spread of each helical residual over real pT2s, so the
-ranking score
-
-    chi2 = sum over the four helical residuals of (residual / sigma)^2
-
-measures how far the pLS extrapolation misses the two mini-doublets of the LS,
-in units of how far a genuine pT2 normally misses. The smallest chi2 wins.
-
-The values committed here keep **54.4% of real pT2s** at a real/fake ratio of
-**6.2**, measured on the 0.6 GeV PU200 sample with `-c -a 1`. To use different
-thresholds, edit the tables in place -- the file is a plain header, so only a
-rebuild is needed.
-
 ## Training the NN
 
 `process -r` also writes `<output dir>/pt2_training_data.root`: a flat tree with one row per pT2 and an `event_idx` branch.
