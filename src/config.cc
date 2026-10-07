@@ -13,9 +13,10 @@ const char* kInputLowPT = "/blue/avery/aaponteutani/CMSSW_16_1_0/src/RecoTracker
 const char* kInput      = "/cmsuf/data/store/user/t2/users/matthew.dittrich/PT2_DATA/ROOT_FILES/LSTNtuple.root";
 
 // Alternative pixel maps, kept for reference:
+//   /cmsuf/data/store/user/t2/users/matthew.dittrich/PT2_DATA/PIXEL_MAPS/Pixel_Maps_0p6GeV/  (0.6 GeV)
 //   /blue/p.chang/aaponteutani/LSTGeometry/output_0p4/pixelmap/  (0.4 GeV)
 //   /blue/p.chang/aaponteutani/LSTGeometry/output_0p3/pixelmap/  (0.5 GeV)
-const char* kPixelMapLowPT = "/cmsuf/data/store/user/t2/users/matthew.dittrich/PT2_DATA/PIXEL_MAPS/Pixel_Maps_0p6GeV/";
+const char* kPixelMapLowPT = "/blue/p.chang/aaponteutani/LSTGeometry/output/pixelmap/";
 const char* kPixelMap      = "/cmsuf/data/store/user/t2/users/matthew.dittrich/PT2_DATA/PIXEL_MAPS/Pixel_Maps_0p8GeV/";
 
 const char* kNNModelDir = "/cmsuf/data/store/user/t2/users/matthew.dittrich/PT2_DATA/NN_MODEL";
