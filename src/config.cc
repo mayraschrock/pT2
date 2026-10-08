@@ -13,6 +13,7 @@ const char* kInputLowPT = "/blue/avery/aaponteutani/CMSSW_16_1_0/src/RecoTracker
 const char* kInput      = "/cmsuf/data/store/user/t2/users/matthew.dittrich/PT2_DATA/ROOT_FILES/LSTNtuple.root";
 
 // Alternative pixel maps, kept for reference:
+//   /cmsuf/data/store/user/t2/users/matthew.dittrich/PT2_DATA/PIXEL_MAPS/Pixel_Maps_0p6GeV/  (0.6 GeV)
 //   /blue/p.chang/aaponteutani/LSTGeometry/output_0p4/pixelmap/  (0.4 GeV)
 //   /blue/p.chang/aaponteutani/LSTGeometry/output_0p3/pixelmap/  (0.5 GeV)
 const char* kPixelMapLowPT = "/blue/p.chang/aaponteutani/LSTGeometry/output/pixelmap/";
@@ -30,7 +31,10 @@ void printUsage(const char* prog)
               << "    -n  Number of events\n"
               << "    -r  Also write LSTNtuple_with_pT2.root (with NN scores) and pt2_training_data.root\n"
               << "    -N  NN model directory with model.onnx, mean.npy, std.npy (\"none\" to skip NN scoring)\n"
-              << "    -c  NN score threshold: only pT2s with score >= this go into the LST ntuple (needs -r;\n"
+              << "    -X  Turn the NN off (no model is loaded, nn_score stays -1); same as -N none\n"
+              << "    -c  Apply the tuned per-zone threshold cuts in src/pt2_cuts.h\n"
+              << "    -a  Ambiguity: keep only the N best pT2s per (pLS, zone, charge)\n"
+              << "    -t  NN score threshold: only pT2s with score >= this go into the LST ntuple (needs -r;\n"
               << "        pt2_training_data.root is then not written)\n"
               << "    -s  Events to process and write: all (default), or train, val, test separated by commas\n"
               << "        (e.g. val,test; same event split as train_v7.py, see event_split.h)\n"
@@ -38,7 +42,7 @@ void printUsage(const char* prog)
               << "  mlcut     Apply an NN cut to the pT2s of an existing LSTNtuple_with_pT2.root (from process -r)\n"
               << "    -i  LSTNtuple_with_pT2.root (required)\n"
               << "    -N  NN model directory (the --output_dir of train_v7.py)\n"
-              << "    -c  NN score threshold: keep pT2s with score >= this (required; see the model's metrics.json)\n"
+              << "    -t  NN score threshold: keep pT2s with score >= this (required; see the model's metrics.json)\n"
               << "    -n  Number of events\n"
               << "    -s  Events to use: all (default), or train, val, test separated by commas (same event split as train_v7.py)\n"
               << "    Writes the histogram file (passing pT2s) and <output dir>/cut_study: before/after plots,\n"
@@ -76,7 +80,7 @@ bool parseArgs(int argc, char** argv, Config& cfg)
     // Parse options after the subcommand
     optind = 2;
     int opt;
-    while ((opt = getopt(argc, argv, "rki:o:n:e:H:N:c:s:")) != -1) {
+    while ((opt = getopt(argc, argv, "rkXci:o:n:e:H:N:t:s:a:")) != -1) {
         switch (opt) {
         case 'r': cfg.writeRoot = true; break;
         case 'k': cfg.lowPT = true; break;
@@ -86,8 +90,11 @@ bool parseArgs(int argc, char** argv, Config& cfg)
         case 'e': cfg.targetPercent = std::stod(optarg); break;
         case 'H': cfg.histFile = optarg; break;
         case 'N': cfg.nnModelDir = optarg; break;
-        case 'c': cfg.nnCut = std::stod(optarg); break;
+        case 't': cfg.nnCut = std::stod(optarg); break;
         case 's': cfg.split = optarg; break;
+        case 'X': cfg.useNN = false; break;
+        case 'c': cfg.applyCuts = true; break;
+        case 'a': cfg.keepPerPls = std::stoi(optarg); break;
         default:
             printUsage(argv[0]);
             return false;
@@ -113,8 +120,14 @@ void printConfig(const Config& cfg)
         std::cout << "Pixel maps:        " << cfg.pixelMapDir << "\n";
         std::cout << "Use Low pT:        " << (cfg.lowPT ? "yes" : "no") << "\n";
         std::cout << "Write ROOT file:   " << (cfg.writeRoot ? "yes" : "no") << "\n";
-        if (cfg.writeRoot) std::cout << "NN model dir:      " << cfg.nnModelDir << "\n";
+        if (cfg.writeRoot) {
+            if (cfg.useNN) std::cout << "NN model dir:      " << cfg.nnModelDir << "\n";
+            else           std::cout << "NN scoring:        off (-X)\n";
+        }
         if (cfg.nnCut >= 0) std::cout << "NN cut:            score >= " << cfg.nnCut << " (LST ntuple only)\n";
+        std::cout << "Threshold cuts:    " << (cfg.applyCuts ? "on (pt2_cuts.h)" : "off") << "\n";
+        if (cfg.keepPerPls > 0)
+            std::cout << "Ambiguity:         keep " << cfg.keepPerPls << " best per (pLS, zone)\n";
         std::cout << "Events:            " << cfg.split << "\n";
         if (cfg.nEvents > 0) std::cout << "Number of events:  " << cfg.nEvents << "\n";
         break;

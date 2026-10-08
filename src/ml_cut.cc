@@ -28,7 +28,7 @@ namespace
 int runMLCut(const Config &cfg)
 {
     if (cfg.inputFile.empty()) throw std::runtime_error("mlcut needs -i <LSTNtuple_with_pT2.root> (made by `pt2 process -r`)");
-    if (cfg.nnCut < 0) throw std::runtime_error("mlcut needs -c <NN score threshold> (from the model's metrics.json)");
+    if (cfg.nnCut < 0) throw std::runtime_error("mlcut needs -t <NN score threshold> (from the model's metrics.json)");
     if (cfg.nnModelDir == "none") throw std::runtime_error("mlcut needs an NN model (-N <model dir>)");
     if (!event_split::isValid(cfg.split))
         throw std::runtime_error("mlcut -s must be all, or train, val, test separated by commas (got " + cfg.split + ")");

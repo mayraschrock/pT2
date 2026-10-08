@@ -15,6 +15,9 @@ struct Config {
     std::string inputFile;       // defaults depend on lowPT
     std::string pixelMapDir;     // defaults depend on lowPT
     std::string nnModelDir;      // holds model.onnx, mean.npy, std.npy
+    bool useNN = true;           // -X turns the NN off, leaving nn_score at -1
+    bool applyCuts = false;      // -c applies the thresholds in pt2_cuts.h
+    int keepPerPls = 0;          // -a N keeps only the N best pT2s per (pLS, zone)
 
     // mlcut (also uses inputFile, nnModelDir, nEvents); process uses nnCut and split too
     double nnCut = -1;           // keep pT2s with NN score >= nnCut (-1: no cut)
