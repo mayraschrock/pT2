@@ -15,13 +15,17 @@
 class Pt2Scorer
 {
 public:
-    static constexpr size_t kNFeatures = 21;
+    static constexpr size_t kNBaseFeatures = 21;
+    static constexpr size_t kNLstFeatures = 8;    // LST pT3-style variables + z residual validity flag, train_v7.py --lst_vars
+    static constexpr size_t kNLayerFeatures = 13; // one-hot LS layer connection (= kNCat), train_v7.py --layers
+    static constexpr size_t kNFeatures = kNBaseFeatures + kNLstFeatures + kNLayerFeatures;
+    // All inputs: base, then LST, then layer flags; a model takes the base inputs plus either or both of the other groups
     using FeatureVector = std::array<float, kNFeatures>;
 
     // meanPath / stdPath: .npy normalization arrays saved by the training script
     Pt2Scorer(const std::string &modelPath, const std::string &meanPath, const std::string &stdPath);
 
-    // Model inputs, in the order of FEATURE_NAMES in pt2_ml/train_*.py
+    // Model inputs, in the order of FEATURE_NAMES in pt2_ml/train_*.py (with --lst_vars --layers)
     static FeatureVector features(const rootReader &reader, const pT2 &pt2);
 
     // Score many candidates in as few ONNX calls as possible; one score per row, same order
@@ -36,6 +40,9 @@ private:
     Ort::MemoryInfo memInfo_;
 
     std::vector<float> mean_, std_;
+    size_t nFeatures_ = kNBaseFeatures; // inputs the model takes
+    bool useLst_ = false, useLayers_ = false;
+    std::vector<size_t> cols_; // FeatureVector index of each model input
     std::string inputName_, outputName_;
     bool dynamicBatch_ = false; // model accepts N rows per call (else 1 row per call)
 

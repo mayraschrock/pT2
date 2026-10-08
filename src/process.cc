@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "event_split.h"
 #include "extra_cuts.h"
 #include "extrapolation.h"
 #include "gator.h"
@@ -63,6 +64,8 @@ namespace
         }
     }
 
+} // namespace
+
     // Fill the pT2's truth / kinematic fields and features.
     // nn_score is left at -1; scoreBatch() sets it
     void computeFeatures(const rootReader &reader, pT2 &pt2)
@@ -108,6 +111,8 @@ namespace
         for (size_t i = 0; i < batch.size(); ++i) batch[i]->nn_score = scores[i];
     }
 
+namespace
+{
     // Values at or below the sentinels mean "could not be computed" and are skipped
     void fillSet(const Pt2HistSet &h, const pT2 &pt2)
     {
@@ -140,6 +145,8 @@ namespace
         }
     }
 
+} // namespace
+
     void fillHistograms(const HistogramManager &hists, const pT2 &pt2)
     {
         if (pt2.combo_idx < 0) return;
@@ -147,10 +154,14 @@ namespace
         if (!pt2.is_used) fillSet(hists.set(pt2.is_real, true, pt2.combo_idx, pt2.charge_idx), pt2);
     }
 
-} // namespace
 
 int runProcess(const Config &cfg)
 {
+    if (!event_split::isValid(cfg.split))
+        throw std::runtime_error("process -s must be all, or train, val, test separated by commas (got " + cfg.split + ")");
+    if (cfg.nnCut >= 0 && (!cfg.writeRoot || cfg.nnModelDir == "none"))
+        throw std::runtime_error("process -c needs -r (the cut only applies to the LST ntuple) and an NN model (-N)");
+
     std::filesystem::create_directories(cfg.outputDir);
 
     SuperbinMaps maps;
@@ -167,9 +178,13 @@ int runProcess(const Config &cfg)
     std::unique_ptr<Pt2Scorer> scorer;
     if (cfg.writeRoot)
     {
-        scorer = std::make_unique<Pt2Scorer>(cfg.nnModelDir + "/model.onnx", cfg.nnModelDir + "/mean.npy", cfg.nnModelDir + "/std.npy");
+        // -N none skips NN evaluation (nn_score stays -1)
+        if (cfg.nnModelDir != "none")
+            scorer = std::make_unique<Pt2Scorer>(cfg.nnModelDir + "/model.onnx", cfg.nnModelDir + "/mean.npy", cfg.nnModelDir + "/std.npy");
         writer = std::make_unique<Pt2NtupleWriter>(cfg.outputDir + "/LSTNtuple_with_pT2.root", reader);
-        trainWriter = std::make_unique<Pt2TrainingWriter>(cfg.outputDir + "/pt2_training_data.root", hists);
+        // With -c the run is for the cut LST ntuple: the training data (every pT2, before the cut) is not needed
+        if (cfg.nnCut < 0)
+            trainWriter = std::make_unique<Pt2TrainingWriter>(cfg.outputDir + "/pt2_training_data.root", hists);
     }
 
     Long64_t totalEntries = reader.GetEntries();
@@ -178,14 +193,22 @@ int runProcess(const Config &cfg)
     print_creature();
 
     pT2Collection pt2s;
+    Long64_t npt2 = 0;
+    Long64_t nWritten = 0;
     for (Long64_t ievt = 0; ievt < nEntries; ++ievt)
     {
+        // -s: only these events are processed and written; ievt stays the original entry
+        // (event_idx in the training data, pT2_sourceEntry in the LST ntuple)
+        if (!event_split::selects(cfg.split, ievt)) continue;
+        ++nWritten;
+
         reader.GetEntry(ievt);
         if (ievt % 2 == 0) printProgressBar(ievt, nEntries);
 
-        if (writer) writer->beginEvent();
+        if (writer) writer->beginEvent(ievt);
         if (trainWriter) trainWriter->beginEvent(ievt);
 
+        npt2 = 0;
         buildEventPt2s(reader, maps, cfg.lowPT, pt2s);
 
         // Everything done with a pT2 once its features and NN score are known
@@ -202,14 +225,14 @@ int runProcess(const Config &cfg)
             // if (pt2.delta_pt < -0.6123 || pt2.delta_pt > 0.1846) return;
             // if (pt2.delta_beta < -0.0445 || pt2.delta_beta > 0.0393) return;
             // if (pt2.z_res_kin < -3.5895 || pt2.z_res_kin > 3.7145) return;
-            // NN cut, score thresholds by real efficiency:
-            //   90%: 0.99761337  95%: 0.99330878  96%: 0.98942512  97%: 0.97682154
-            //   98%: 0.92524022  99%: 0.71041596  99.9%: 0.01175442
-            // if (pt2.nn_score < 0.92524022f) return;
-
-            if (writer) writer->add(pt2);
+            // Training data and histograms get every pT2 (the NN must be trained on uncut pT2s)
             if (trainWriter) trainWriter->add(reader, pt2);
             fillHistograms(hists, pt2);
+
+            // NN cut (-c), only on the pT2s added to the LST ntuple; without -c every pT2 is kept.
+            // Score thresholds by real efficiency: the model's metrics.json
+            if (cfg.nnCut >= 0 && pt2.nn_score < cfg.nnCut) return;
+            if (writer) writer->add(pt2);
         };
 
         // Buffer pT2s with their features, score them together, then process them
@@ -238,6 +261,8 @@ int runProcess(const Config &cfg)
         if (writer) writer->endEvent();
     }
     std::cout << "\n";
+
+    std::cout << "Processed " << nWritten << " of " << nEntries << " events (-s " << cfg.split << ")\n";
 
     hists.write(cfg.histFile);
     std::cout << "Saved histograms to: " << cfg.histFile << std::endl;

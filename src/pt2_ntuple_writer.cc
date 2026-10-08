@@ -11,6 +11,7 @@ Pt2NtupleWriter::Pt2NtupleWriter(const std::string& path, rootReader& reader)
     // Copy the input branch structure, but no entries
     tree_ = reader_.inputTree->CloneTree(0);
 
+    tree_->Branch("pT2_sourceEntry", &sourceEntry_, "pT2_sourceEntry/L");
     tree_->Branch("pT2_pt", &pt_);
     tree_->Branch("pT2_eta", &eta_);
     tree_->Branch("pT2_phi", &phi_);
@@ -33,8 +34,9 @@ Pt2NtupleWriter::~Pt2NtupleWriter()
     delete file_;  // also deletes tree_
 }
 
-void Pt2NtupleWriter::beginEvent()
+void Pt2NtupleWriter::beginEvent(Long64_t sourceEntry)
 {
+    sourceEntry_ = sourceEntry;
     pt_.clear();
     eta_.clear();
     phi_.clear();

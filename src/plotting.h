@@ -11,8 +11,8 @@ public:
     void plotRecipes(const std::vector<PlotRecipe>& recipes,
                      const std::string& outputDir);
 
-private:
-    void generateHTMLGallery(const std::string& outputDir);
+    // index.html with every .png in outputDir
+    static void generateHTMLGallery(const std::string& outputDir);
 };
 
 #endif

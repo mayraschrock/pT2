@@ -16,8 +16,8 @@ public:
     Pt2NtupleWriter(const std::string& path, rootReader& reader);
     ~Pt2NtupleWriter();
 
-    // Call after reader.GetEntry()
-    void beginEvent();
+    // Call after reader.GetEntry(); sourceEntry: the event's entry in the input ntuple
+    void beginEvent(Long64_t sourceEntry);
     // Record one selected pT2
     void add(const pT2& pt2);
     // Flag duplicates, inject pT2s as TCs, and fill the tree
@@ -36,6 +36,7 @@ private:
     TFile* file_ = nullptr;
     TTree* tree_ = nullptr;
 
+    Long64_t sourceEntry_ = -1;   // entry in the input ntuple (process -s skips events)
     std::vector<float> pt_, eta_, phi_;
     std::vector<int> plsIdx_, lsIdx_;
     std::vector<int> isFake_, isUsed_, isDuplicate_;

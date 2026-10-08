@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "gator.h"
+#include "ml_cut.h"
 #include "plot.h"
 #include "process.h"
 #include "scan.h"
@@ -21,6 +22,8 @@ int main(int argc, char **argv)
         {
             case Mode::Process:
                 return runProcess(cfg);
+            case Mode::MLCut:
+                return runMLCut(cfg);
             case Mode::Scan:
                 return runScan(cfg);
             case Mode::Plot:
